@@ -89,11 +89,15 @@ jobs:
           ./gradlew
           publishAllPublicationsToMinestomUnitedRepositoryRepository
           publishAllPublicationsToMavenCentralRepository
+          :invoke-gradle-plugin:publishPluginMavenPublicationToMinestomUnitedRepositoryRepository
+        #We don't publish plugin snapshots to the Gradle Plugin Portal since they only accept releases
         env:
           REPO_USERNAME: ${{ secrets.REPO_USERNAME }}
           REPO_PASSWORD: ${{ secrets.REPO_PASSWORD }}
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
 
       - name: Publish release
         if: needs.build.outputs.status == 'release' && steps.existing.outputs.exists == 'false'
@@ -101,6 +105,8 @@ jobs:
           ./gradlew
           publishAllPublicationsToMinestomUnitedRepositoryRepository
           publishAllPublicationsToMavenCentralRepository
+          :invoke-gradle-plugin:publishPluginMavenPublicationToMinestomUnitedRepositoryRepository
+          :invoke-gradle-plugin:publishPlugins
         env:
           REPO_USERNAME: ${{ secrets.REPO_USERNAME }}
           REPO_PASSWORD: ${{ secrets.REPO_PASSWORD }}
@@ -108,6 +114,8 @@ jobs:
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_PRIVATE_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.GPG_PASSPHRASE }}
+          GRADLE_PUBLISH_KEY: ${{ secrets.GRADLE_PUBLISH_KEY }}
+          GRADLE_PUBLISH_SECRET: ${{ secrets.GRADLE_PUBLISH_SECRET }}
 
       - name: Create tag and GitHub release
         if: needs.build.outputs.status == 'release' && steps.existing.outputs.exists == 'false'
