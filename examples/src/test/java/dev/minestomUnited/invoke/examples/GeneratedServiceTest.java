@@ -1,5 +1,6 @@
 package dev.minestomUnited.invoke.examples;
 
+import dev.minestomUnited.examples.generated.GeneratedServiceClient;
 import dev.minestomUnited.invoke.runtime.InvokeRegistry;
 import org.junit.jupiter.api.Test;
 

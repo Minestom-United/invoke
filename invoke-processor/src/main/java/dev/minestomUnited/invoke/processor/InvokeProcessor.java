@@ -12,6 +12,7 @@ import dev.minestomUnited.invoke.InvokeService;
 import javax.annotation.processing.AbstractProcessor;
 import javax.annotation.processing.Filer;
 import javax.annotation.processing.Messager;
+import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedOptions;
@@ -34,6 +35,12 @@ import javax.tools.JavaFileObject;
  * Java annotation processor that turns @InvokeService interfaces into typed HTTP clients. Each method keeps its exact
  * signature, so the generated client implements the service interface and callers never touch JSON. The CODEC check is
  * name-based (a static StructCodec field), which keeps this jar free of the codec dependency.
+ *
+ * <p>Two options steer the generated type, both supplied by the {@code dev.minestom-united.invoke} Gradle plugin:
+ * {@code -Ainvoke.packageName} picks the package the clients land in, and {@code -Ainvoke.clientSuffix} renames the
+ * generated type (default {@code Client}). Without {@code packageName}, clients land beside their service interface.
+ * Because the generated source references the service and runtime types by fully qualified name, a client in a
+ * different package needs no imports.
  */
 @SupportedAnnotationTypes({
     InvokeProcessor.SERVICE_ANNOTATION,
@@ -50,6 +57,26 @@ public class InvokeProcessor extends AbstractProcessor {
     static final String INVOKE_EXCEPTION = "dev.minestomUnited.invoke.runtime.InvokeException";
     static final String INVOKE_ENVELOPES = "dev.minestomUnited.invoke.runtime.InvokeEnvelopes";
 
+    static final String OPTION_PACKAGE_NAME = "invoke.packageName";
+    static final String OPTION_CLIENT_SUFFIX = "invoke.clientSuffix";
+    static final String DEFAULT_CLIENT_SUFFIX = "Client";
+
+    private String clientPackageName;
+    private String clientSuffix;
+
+    @Override
+    public synchronized void init(ProcessingEnvironment processingEnv) {
+        super.init(processingEnv);
+        this.clientPackageName = processingEnv.getOptions().get(OPTION_PACKAGE_NAME);
+        this.clientSuffix = processingEnv.getOptions().get(OPTION_CLIENT_SUFFIX);
+        if (this.clientSuffix == null || this.clientSuffix.isBlank()) {
+            this.clientSuffix = DEFAULT_CLIENT_SUFFIX;
+        }
+        if (this.clientPackageName != null && this.clientPackageName.isBlank()) {
+            this.clientPackageName = null;
+        }
+    }
+
     /**
      * Scans each round for @InvokeService interfaces and emits one ServiceNameClient per valid interface. Invalid
      * services (overloads, wrong arity, non-record args, missing CODEC) report compile errors and produce no client, so
@@ -62,7 +89,6 @@ public class InvokeProcessor extends AbstractProcessor {
      */
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        Messager messager = processingEnv.getMessager();
         Elements elements = processingEnv.getElementUtils();
         List<Element> services = new ArrayList<>(roundEnv.getElementsAnnotatedWith(InvokeService.class));
         TypeElement runtimeAnnotation = elements.getTypeElement(RUNTIME_SERVICE_ANNOTATION);
@@ -105,7 +131,7 @@ public class InvokeProcessor extends AbstractProcessor {
         boolean failed = false;
         Map<String, List<ExecutableElement>> byName = new LinkedHashMap<>();
         for (ExecutableElement method : methods) {
-            byName.computeIfAbsent(method.getSimpleName().toString(), k -> new ArrayList<>()).add(method);
+            byName.computeIfAbsent(method.getSimpleName().toString(), _ -> new ArrayList<>()).add(method);
         }
         for (Map.Entry<String, List<ExecutableElement>> entry : byName.entrySet()) {
             if (entry.getValue().size() > 1) {
@@ -225,9 +251,11 @@ public class InvokeProcessor extends AbstractProcessor {
     private void generateClient(TypeElement serviceType, List<MethodModel> methods) throws IOException {
         Elements elements = processingEnv.getElementUtils();
         Filer filer = processingEnv.getFiler();
-        String packageName = elements.getPackageOf(serviceType).getQualifiedName().toString();
+        String packageName = clientPackageName != null
+            ? clientPackageName
+            : elements.getPackageOf(serviceType).getQualifiedName().toString();
         String serviceSimpleName = serviceType.getSimpleName().toString();
-        String clientName = serviceSimpleName + "Client";
+        String clientName = serviceSimpleName + clientSuffix;
         String source = renderClient(packageName, serviceType.getQualifiedName().toString(), clientName, methods);
         JavaFileObject file = filer.createSourceFile(packageName + "." + clientName, serviceType);
         try (Writer writer = file.openWriter()) {
