@@ -20,7 +20,7 @@ java.toolchain {
 }
 
 invoke {
-    packageName = "dev.minestomunit.examples.example"
+    packageName = "dev.minestomUnited.examples.generated"
 }
 
 tasks.named<Test>("test") {

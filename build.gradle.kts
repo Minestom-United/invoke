@@ -5,8 +5,6 @@ plugins {
 }
 
 subprojects {
-    group = "dev.minestom-united"
-
     pluginManager.withPlugin("com.vanniktech.maven.publish") {
         extensions.configure<MavenPublishBaseExtension> {
             publishToMavenCentral()

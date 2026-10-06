@@ -3,6 +3,8 @@ plugins {
     alias(libs.plugins.vanniktech.publish)
 }
 
+group = "dev.minestom-united.invoke"
+
 repositories {
     mavenCentral()
 }
